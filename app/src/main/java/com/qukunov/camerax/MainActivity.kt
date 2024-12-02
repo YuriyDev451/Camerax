@@ -2,14 +2,14 @@ package com.qukunov.camerax
 
 import android.Manifest
 import android.content.ContentValues
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Insets.add
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
@@ -29,9 +29,8 @@ import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.qukunov.camerax.databinding.ActivityMainBinding
+import java.io.File
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -90,47 +89,90 @@ class MainActivity : AppCompatActivity() {
 
 
     }
-
     private fun takePhoto() {
-        // Get a stable reference of the modifiable image capture use case
-        val imageCapture = imageCapture ?: return
+        // Создаем файл для хранения фото
+        val photoFile = File(
+            getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+            "${System.currentTimeMillis()}.jpg"
+        )
 
-        // Create time stamped name and MediaStore entry.
-        val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
-            .format(System.currentTimeMillis())
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-            if(Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
-                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraX-Image")
-            }
-        }
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
 
-        // Create output options object which contains file + metadata
-        val outputOptions = ImageCapture.OutputFileOptions
-            .Builder(contentResolver,
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                contentValues)
-            .build()
-
-        // Set up image capture listener, which is triggered after photo has
-        // been taken
-        imageCapture.takePicture(
+        imageCapture?.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
-                override fun onError(exc: ImageCaptureException) {
-                    Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    val photoPath = photoFile.absolutePath
+                    Toast.makeText(this@MainActivity, "Фото сохранено: $photoPath", Toast.LENGTH_SHORT).show()
+
+                    // Переход на экран отображения фотографии
+                    val intent = Intent(this@MainActivity, PhotoActivity::class.java).apply {
+                        putExtra("photoPath", photoPath)
+                    }
+                    startActivity(intent)
                 }
 
-                override fun onImageSaved(output: ImageCapture.OutputFileResults){
-                    val msg = "Photo capture succeeded: ${output.savedUri}"
-                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
-                    Log.d(TAG, msg)
+                override fun onError(exception: ImageCaptureException) {
+                    Toast.makeText(this@MainActivity, "Ошибка сохранения: ${exception.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         )
     }
+
+//    private fun takePhoto() {
+//        // Get a stable reference of the modifiable image capture use case
+//        val imageCapture = imageCapture ?: return
+//
+//        // Create time stamped name and MediaStore entry.
+//        val name = SimpleDateFormat(FILENAME_FORMAT, Locale.US)
+//            .format(System.currentTimeMillis())
+//        val contentValues = ContentValues().apply {
+//            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+//            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+//            if(Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+//                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CameraX-Image")
+//            }
+//        }
+//
+//        // Create output options object which contains file + metadata
+//        val outputOptions = ImageCapture.OutputFileOptions
+//            .Builder(contentResolver,
+//                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+//                contentValues)
+//            .build()
+//
+//
+//        val photoFile = File(externalMediaDirs.first(), "${System.currentTimeMillis()}.jpg")
+//        // Set up image capture listener, which is triggered after photo has
+//        // been taken
+//        imageCapture.takePicture(
+//            outputOptions,
+//            ContextCompat.getMainExecutor(this),
+//            object : ImageCapture.OnImageSavedCallback {
+//                override fun onError(exc: ImageCaptureException) {
+//                    Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
+//                }
+//
+//                override fun onImageSaved(output: ImageCapture.OutputFileResults){
+////                    val msg = "Photo capture succeeded: ${output.savedUri}"
+////                    Toast.makeText(baseContext, msg, Toast.LENGTH_SHORT).show()
+////                    Log.d(TAG, msg)
+//                    val intent = Intent(this@MainActivity, PhotoActivity::class.java).apply {
+//                        putExtra("photoPath", photoFile.absolutePath)
+//                    }
+//                    startActivity(intent)
+//                }
+//            }
+//        )
+//    }
+
+
+
+
+
+
+
 
     private fun captureVideo() {
         val videoCapture = this.videoCapture ?: return
